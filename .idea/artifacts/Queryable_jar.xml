@@ -1,0 +1,10 @@
+<component name="ArtifactManager">
+  <artifact name="Queryable:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/Queryable_jar</output-path>
+    <root id="root">
+      <element id="archive" name="Queryable.jar">
+        <element id="module-output" name="Queryable" />
+      </element>
+    </root>
+  </artifact>
+</component>
