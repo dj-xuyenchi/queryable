@@ -8,8 +8,6 @@ public interface ISQLAction<T> {
 
     void deleteById(String id);
 
-    List<T> getListByQuery(String query);
-
     Queryable getQueryable();
 }
 

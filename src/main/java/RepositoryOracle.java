@@ -1,28 +1,27 @@
 
 import java.lang.reflect.Field;
-import java.sql.Date;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Repository<T> implements ISQLAction<T> {
+public class RepositoryOracle<T> implements ISQLAction<T> {
     Class<T> c;
     String tableName;
     String idField;
     List<String> fieldNamesSQL;
     List<String> fieldNames;
 
-    public Repository(Class<T> c) {
+    public RepositoryOracle(Class<T> c) {
         this.c = c;
-        tableName = convertCamelToSnake(c.getSimpleName());
+        tableName = LibUtil.convertCamelToSnake(c.getSimpleName());
         fieldNames = new ArrayList<>();
         fieldNamesSQL = new ArrayList<>();
         int countId = 0;
         for (Field field : c.getDeclaredFields()) {
             if (field.isAnnotationPresent(ID.class)) {
-                idField = convertCamelToSnake(field.getName());
+                idField = LibUtil.convertCamelToSnake(field.getName());
                 countId++;
             }
-            fieldNamesSQL.add(convertCamelToSnake(field.getName()));
+            fieldNamesSQL.add(LibUtil.convertCamelToSnake(field.getName()));
             fieldNames.add(field.getName());
         }
         if (countId == 0) {
@@ -73,10 +72,6 @@ public class Repository<T> implements ISQLAction<T> {
         System.out.println(query);
     }
 
-    @Override
-    public List<T> getListByQuery(String query) {
-        return null;
-    }
 
     @Override
     public Queryable getQueryable() {
@@ -87,13 +82,9 @@ public class Repository<T> implements ISQLAction<T> {
                 .append(" ");
         QueryDetail queryDetail = new QueryDetail();
         queryDetail.setFrom(initQuery);
-        return new Queryable(queryDetail);
+        return new Queryable(queryDetail,null);
     }
 
 
-    public static String convertCamelToSnake(String camelCase) {
-        return camelCase
-                .replaceAll("([a-z])([A-Z])", "$1_$2")
-                .toLowerCase();
-    }
+
 }

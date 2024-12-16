@@ -1,15 +1,18 @@
 
+import org.springframework.jdbc.core.BeanPropertyRowMapper;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+
 import java.lang.invoke.SerializedLambda;
 import java.lang.reflect.Method;
 import java.util.*;
 
 public class Queryable {
-    StringBuilder query;
     QueryDetail detail;
     boolean isGroupBy = false;
     boolean isOrderBy = false;
     boolean isHaving = false;
-    JDBCAction _jdbc;
+    NamedParameterJdbcTemplate _np;
 
     public StringBuilder getQuery() {
         return detail.getSelect()
@@ -21,43 +24,50 @@ public class Queryable {
                 .append(isHaving ? detail.getHaving() : "");
     }
 
-    public Object execute() {
-        return _jdbc.getList(getQuery().toString());
+    public <T> Object execute(MapSqlParameterSource p, Class<T> c) {
+        System.out.println(getQuery().toString());
+        return _np.queryForList(getQuery().toString(), p, c);
     }
 
     private Queryable() {
     }
 
-    public Queryable(QueryDetail queryDetail) {
+    public Queryable(QueryDetail queryDetail, NamedParameterJdbcTemplate np) {
         this.detail = queryDetail;
+        this._np = np;
     }
 
-    public <T, K, S, D> Queryable join(Class<?> tableJoin, SerializableFunction<T, K> col1, SerializableFunction<S, D> col2) throws Exception {
-        StringBuilder joinQuery = detail.getJoin() == null ? new StringBuilder() : detail.getJoin();
-        String table = convertCamelToSnake(tableJoin.getSimpleName()).toUpperCase();
-        String tbl1 = getClassName(col1).toUpperCase();
-        String tbl2 = getClassName(col2).toUpperCase();
-        if (!tbl1.equals(table) && !tbl2.equals(table)) {
-            throw new Exception("Ca 2 cot khong co cot nao join vao table " + table);
+    public <T, K, S, D> Queryable join(Class<?> tableJoin, SerializableFunction<T, K> col1, SerializableFunction<S, D> col2) {
+        try {
+            StringBuilder joinQuery = detail.getJoin() == null ? new StringBuilder() : detail.getJoin();
+            String table = LibUtil.convertCamelToSnake(tableJoin.getSimpleName()).toUpperCase();
+            String tbl1 = LibUtil.convertCamelToSnake(getClassName(col1)).toUpperCase();
+            String tbl2 = LibUtil.convertCamelToSnake(getClassName(col2)).toUpperCase();
+            if (!tbl1.equals(table) && !tbl2.equals(table)) {
+                throw new Exception("Ca 2 cot khong co cot nao join vao table " + table);
+            }
+            if (tbl1.equals(table) && tbl2.equals(table)) {
+                throw new Exception("Ca 2 cot deu cung 1 table " + table);
+            }
+            String col1Name = LibUtil.convertCamelToSnake(getMethodName(col1).substring(3));
+            String col2Name = LibUtil.convertCamelToSnake(getMethodName(col2).substring(3));
+            joinQuery
+                    .append("\n   JOIN  ")
+                    .append(table)
+                    .append(" on ")
+                    .append(tbl1)
+                    .append(".")
+                    .append(col1Name)
+                    .append(" = ")
+                    .append(tbl2)
+                    .append(".")
+                    .append(col2Name);
+            detail.setJoin(joinQuery);
+            return this;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
         }
-        if (tbl1.equals(table) && tbl2.equals(table)) {
-            throw new Exception("Ca 2 cot deu cung 1 table " + table);
-        }
-        String col1Name = convertCamelToSnake(getMethodName(col1).substring(3));
-        String col2Name = convertCamelToSnake(getMethodName(col2).substring(3));
-        joinQuery
-                .append("\n         JOIN ")
-                .append(table)
-                .append(" on ")
-                .append(tbl1)
-                .append(".")
-                .append(col1Name)
-                .append(" = ")
-                .append(tbl2)
-                .append(".")
-                .append(col2Name);
-        detail.setJoin(joinQuery);
-        return this;
     }
 
     public Queryable where(String where) {
@@ -133,12 +143,6 @@ public class Queryable {
     }
 
 
-    public static String convertCamelToSnake(String camelCase) {
-        return camelCase
-                .replaceAll("([a-z])([A-Z])", "$1_$2")
-                .toLowerCase();
-    }
-
     private static String getMethodName(SerializableFunction<?, ?> function) throws Exception {
         Method writeReplace = function.getClass().getDeclaredMethod("writeReplace");
         writeReplace.setAccessible(true);
@@ -154,11 +158,16 @@ public class Queryable {
         return fullName[fullName.length - 1];
     }
 
-    public static <T, K> String col(SerializableFunction<T, K> function) throws Exception {
-        Method writeReplace = function.getClass().getDeclaredMethod("writeReplace");
-        writeReplace.setAccessible(true);
-        SerializedLambda serializedLambda = (SerializedLambda) writeReplace.invoke(function);
-        String[] fullName = serializedLambda.getImplClass().split("/");
-        return fullName[fullName.length - 1] + "." + convertCamelToSnake(getMethodName(function).substring(3));
+    public static <T, K> String col(SerializableFunction<T, K> function) {
+        try {
+            Method writeReplace = function.getClass().getDeclaredMethod("writeReplace");
+            writeReplace.setAccessible(true);
+            SerializedLambda serializedLambda = (SerializedLambda) writeReplace.invoke(function);
+            String[] fullName = serializedLambda.getImplClass().split("/");
+            return fullName[fullName.length - 1] + "." + LibUtil.convertCamelToSnake(getMethodName(function).substring(3));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 }
