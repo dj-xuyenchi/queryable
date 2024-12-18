@@ -5,22 +5,28 @@ import java.util.List;
 public class Main {
     public static void main(String[] args) {
         RepositoryMySql<HocSinh> s = new RepositoryMySql<>(HocSinh.class, TestConfig.getI().source());
+        try {
 
-        Object as = s.getQueryable()
-                .select(
-                        Queryable.col(Mon::getId),
-                        Queryable.col(Mon::getHocSinhId)
-                )
-                .join(Mon.class, Mon::getHocSinhId, HocSinh::getId)
-                .execute(null, HiuHiu.class);
-        HocSinh h1 = s.getById("1");
-        h1.setTenHocSinh("Hhshshshs");
-        s.updateById(h1);
-        System.out.println(h1.getTenHocSinh());
+            List<HiuHiu> as = (List<HiuHiu>) s.getQueryable()
+                    .select(
+                            Queryable.sl(Mon::getId),
+                            Queryable.sl(Mon::getHocSinhId),
+                            Queryable.sl(HocSinh::getTenHocSinh)
+                    )
+                    .join(Mon.class, Mon::getHocSinhId, HocSinh::getId)
+                    .groupBy(Queryable.col(Mon::getId))
+                    .orderBy(Queryable.col(Mon::getId))
+                    .execute(new MapSqlParameterSource(), HiuHiu.class);
+            for (HiuHiu h : as) {
+                System.out.println(h.getTenHocSinh());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        //   HocSinh h1 = s.getById("1");
+        //   h1.setTenHocSinh("Hhshshshs");
+        //    s.updateById(h1);
 //        MapSqlParameterSource p = new MapSqlParameterSource();
-//        List<HocSinh> a = (List<HocSinh>) s.getQueryable().execute(s.get_np(), p, HocSinh.class);
-//        for (HocSinh h : a) {
-//            System.out.println(h.getTenHocSinh());
-//        }
+
     }
 }

@@ -15,7 +15,8 @@ public class Queryable {
     NamedParameterJdbcTemplate _np;
 
     public StringBuilder getQuery() {
-        return detail.getSelect()
+        StringBuilder query = new StringBuilder(detail.getSelect());
+        return query
                 .append(detail.getFrom())
                 .append(detail.getJoin() == null ? "" : detail.getJoin())
                 .append(detail.getWhere() == null ? "" : detail.getWhere())
@@ -26,7 +27,7 @@ public class Queryable {
 
     public <T> Object execute(MapSqlParameterSource p, Class<T> c) {
         System.out.println(getQuery().toString());
-        return _np.queryForList(getQuery().toString(), p, c);
+        return _np.query(getQuery().toString(), p, new BeanPropertyRowMapper<>(c));
     }
 
     private Queryable() {
@@ -105,7 +106,8 @@ public class Queryable {
                     .append(",\n");
         }
         groupCol.deleteCharAt(groupCol.length() - 2);
-        detail.setGroupBy(detail.getGroupBy().append(groupCol));
+        groupCol.deleteCharAt(groupCol.length() - 1);
+        detail.setGroupBy(new StringBuilder("\n   GROUP BY \n").append(groupCol));
         return this;
     }
 
@@ -120,7 +122,9 @@ public class Queryable {
                     .append(",\n");
         }
         orderCol.deleteCharAt(orderCol.length() - 2);
-        detail.setOrderBy(isGroupBy ? detail.getOrderBy().append(orderCol) : new StringBuilder("\n").append(detail.getOrderBy().append(orderCol)));
+        orderCol.deleteCharAt(orderCol.length() - 1);
+        detail.setOrderBy(isGroupBy ?
+                new StringBuilder("\n   ORDER BY \n").append(orderCol) : new StringBuilder("\n").append(new StringBuilder("\n   ORDER BY \n").append(orderCol)));
         return this;
     }
 
@@ -138,7 +142,7 @@ public class Queryable {
                     .append(",\n");
         }
         havingCol.deleteCharAt(havingCol.length() - 2);
-        detail.setHaving(detail.getHaving().append(havingCol));
+        detail.setHaving(new StringBuilder("\n   Having \n").append(havingCol));
         return this;
     }
 
@@ -158,13 +162,28 @@ public class Queryable {
         return fullName[fullName.length - 1];
     }
 
+    public static <T, K> String sl(SerializableFunction<T, K> function) {
+        try {
+            Method writeReplace = function.getClass().getDeclaredMethod("writeReplace");
+            writeReplace.setAccessible(true);
+            SerializedLambda serializedLambda = (SerializedLambda) writeReplace.invoke(function);
+            String[] fullName = serializedLambda.getImplClass().split("/");
+            String name = LibUtil.convertCamelToSnake(getMethodName(function).substring(3));
+            return LibUtil.convertCamelToSnake(fullName[fullName.length - 1]).toUpperCase() + "." + name + " as " + name;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
     public static <T, K> String col(SerializableFunction<T, K> function) {
         try {
             Method writeReplace = function.getClass().getDeclaredMethod("writeReplace");
             writeReplace.setAccessible(true);
             SerializedLambda serializedLambda = (SerializedLambda) writeReplace.invoke(function);
             String[] fullName = serializedLambda.getImplClass().split("/");
-            return fullName[fullName.length - 1] + "." + LibUtil.convertCamelToSnake(getMethodName(function).substring(3));
+            String name = LibUtil.convertCamelToSnake(getMethodName(function).substring(3));
+            return LibUtil.convertCamelToSnake(fullName[fullName.length - 1]).toUpperCase() + "." + name;
         } catch (Exception e) {
             e.printStackTrace();
             return null;
